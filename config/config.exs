@@ -36,3 +36,10 @@ config :ticker_base,
          "BTCUSD" => :BTCUSD,
          "USDPLN" => :USDPLN
        }
+
+config :logger,
+       backends: [{LoggerFileBackend, :info_log}]
+
+config :logger, :info_log,
+       level: :info,
+       path: "log/info.log"

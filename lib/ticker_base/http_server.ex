@@ -5,22 +5,27 @@ defmodule TickerBase.HttpServer do
 
   alias TickerBase.{Database, Tick}
 
+  require Logger
+
   @impl Raxx.Server
   def handle_request(%{method: :GET, path: ["api", "ticks", symbol_alias]} = request, aliases_map) do
+    Logger.info("Got Request: #{inspect request}}")
     results = aliases_map |> Map.get(symbol_alias) |> get_data(fetch_query(request))
     response(:ok)
     |> set_header("content-type", "text/plain")
-    |> set_body(Poison.encode!(results, pretty: true))
+    |> set_body(JSON.encode!(results))
   end
 
-  def handle_request(%{method: :GET, path: ["api", "candles", symbol_alias]}, aliases_map) do
+  def handle_request(%{method: :GET, path: ["api", "candles", symbol_alias]} = request, aliases_map) do
+    Logger.info("Got Request: #{inspect request}}")
     results = aliases_map |> Map.get(symbol_alias) |> get_candles()
     response(:ok)
     |> set_header("content-type", "text/plain")
-    |> set_body(Poison.encode!(results, pretty: true))
+    |> set_body(JSON.encode!(results))
   end
 
-  def handle_request(%{method: :POST, path: ["api", "ticks"], body: body}, aliases_map) do
+  def handle_request(%{method: :POST, path: ["api", "ticks"], body: body} = request, aliases_map) do
+    Logger.info("Got Request: #{inspect request}}")
     request(:GET, "/?" <> body)
     |> fetch_query()
     |> insert_data(aliases_map)
@@ -29,7 +34,8 @@ defmodule TickerBase.HttpServer do
     |> set_header("content-type", "text/plain")
   end
 
-  def handle_request(_, _) do
+  def handle_request(request, _) do
+    Logger.info("Got Request: #{inspect request}}")
     400
     |> response()
     |> set_header("content-type", "text/plain")
@@ -90,10 +96,10 @@ defmodule TickerBase.HttpServer do
   end
   defp convert_data_to_result({day, {min, max, avg}}) do
     date = Date.utc_today()
-    %{date: Date.to_string(%Date{date | day: day}),
+    [date: Date.to_string(%Date{date | day: day}),
       min_price: float_to_string(min),
       max_price: float_to_string(max),
-      avg_price: float_to_string(avg)}
+      avg_price: float_to_string(avg)]
   end
 
   defp float_to_string(number), do: :erlang.float_to_binary(number, [{:decimals, 4}])

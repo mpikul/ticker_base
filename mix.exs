@@ -15,7 +15,7 @@ defmodule TickerBase.MixProject do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
+      extra_applications: [:logger, :logger_file_backend],
       mod: {TickerBase.Application, []}
     ]
   end
@@ -24,7 +24,8 @@ defmodule TickerBase.MixProject do
   defp deps do
     [
       {:ace,      "~> 0.16.6"},
-      {:poison,   "~> 4.0.1"},
+      {:json,     "~> 1.2"},
+      {:logger_file_backend, "0.0.10"},
       {:ex_meck,  "~> 0.2.0", only: [:test]},
       {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
       {:credo,    "~> 0.10.0", only: [:dev, :test], runtime: false}

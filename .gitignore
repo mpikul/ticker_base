@@ -22,6 +22,9 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 ticker_base-*.tar
 
+#Ignore log files
+/log
+
 # Ignore IntelliJ IDEA files
 /.idea
 *.iml
