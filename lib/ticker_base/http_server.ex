@@ -6,16 +6,18 @@ defmodule TickerBase.HttpServer do
   alias TickerBase.{Tick, Database}
 
   @impl Raxx.Server
-  def handle_request(request = %{method: :GET, path: ["api", "ticks", symbol]}, aliases_map) do
+  def handle_request(request = %{method: :GET, path: ["api", "ticks", symbol_alias]}, aliases_map) do
+    results = aliases_map |> Map.get(symbol_alias) |> get_data(fetch_query(request))
     response(:ok)
     |> set_header("content-type", "text/plain")
-    |> set_body(Poison.encode!(get_data(Map.get(aliases_map, symbol), fetch_query(request))))
+    |> set_body(Poison.encode!(results, pretty: true))
   end
 
-  def handle_request(%{method: :GET, path: ["api", "candles", symbol]}, aliases_map) do
+  def handle_request(%{method: :GET, path: ["api", "candles", symbol_alias]}, aliases_map) do
+    results = aliases_map |> Map.get(symbol_alias) |> get_candles()
     response(:ok)
     |> set_header("content-type", "text/plain")
-    |> set_body(Poison.encode!(get_candles(Map.get(aliases_map, symbol))))
+    |> set_body(Poison.encode!(results, pretty: true))
   end
 
   def handle_request(%{method: :POST, path: ["api", "ticks"], body: body}, aliases_map) do
@@ -27,10 +29,15 @@ defmodule TickerBase.HttpServer do
     |> set_header("content-type", "text/plain")
   end
 
-  defp insert_data({:ok ,%{"symbol" => symbol, "price" => price, "timestamp" => timestamp}}, aliases_map) do
+  def handle_request(_, _) do
+    response(400)
+    |> set_header("content-type", "text/plain")
+  end
+
+  defp insert_data({:ok ,%{"symbol" => symbol_alias, "price" => price, "timestamp" => timestamp}}, aliases_map) do
     Database.insert_tick!(%Tick{
-      symbol: Map.get(aliases_map, symbol),
-      price: String.to_float(price),
+      symbol: Map.get(aliases_map, symbol_alias),
+      price: string_to_float(price),
       timestamp: String.to_integer(timestamp)}
     )
   end
@@ -56,7 +63,6 @@ defmodule TickerBase.HttpServer do
     |> Enum.map(fn data -> convert_data_to_result(data) end)
   end
 
-  def get_daily_stats_from_ticks([]), do: []
   def get_daily_stats_from_ticks(ticks) do
     ticks
     |> Enum.group_by(fn %Tick{timestamp: timestamp} -> get_day_of_month(timestamp) end)
@@ -64,26 +70,37 @@ defmodule TickerBase.HttpServer do
     |> Enum.sort()
   end
 
-  def get_min_max_avg_from_ticks(ticks) do
-    {min, max} = Enum.min_max_by(ticks, fn %Tick{price: price} -> price end)
-    sum = List.foldl(ticks, 0.0, fn %Tick{price: price}, acc -> acc + price end)
+  def get_min_max_avg_from_ticks([%Tick{price: first_price}|rest] = ticks) do
+    {min, max, sum} = List.foldl(rest, {first_price, first_price, first_price},
+      fn %Tick{price: price}, {min, max, sum} ->
+        {Enum.min([min, price]),
+         Enum.max([max, price]),
+         sum + price
+        }
+      end)
 
     {min, max, sum / length(ticks)}
   end
 
   defp get_day_of_month(timestamp) do
-    %DateTime{day: day} = DateTime.from_unix!(timestamp)
+    %DateTime{day: day} = DateTime.from_unix!(timestamp, :millisecond)
     day
   end
 
   defp convert_data_to_result(%Tick{price: price, timestamp: timestamp}) do
-    %{price: :erlang.float_to_binary(price, [{:decimals, 4}]), timestamp: timestamp}
+    %{price: float_to_string(price), timestamp: timestamp}
   end
-  defp convert_data_to_result({day, {%Tick{price: min}, %Tick{price: max}, avg}}) do
+  defp convert_data_to_result({day, {min, max, avg}}) do
     date = Date.utc_today()
     %{date: Date.to_string(%Date{date | day: day}),
-      min_price: :erlang.float_to_binary(min, [{:decimals, 4}]),
-      max_price: :erlang.float_to_binary(max, [{:decimals, 4}]),
-      avg_price: :erlang.float_to_binary(avg, [{:decimals, 4}])}
+      min_price: float_to_string(min),
+      max_price: float_to_string(max),
+      avg_price: float_to_string(avg)}
+  end
+
+  defp float_to_string(number), do: :erlang.float_to_binary(number, [{:decimals, 4}])
+  defp string_to_float(number) do
+    {float_number, _} = Float.parse(number)
+    float_number
   end
 end

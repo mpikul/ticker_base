@@ -21,9 +21,6 @@ defmodule TickerBase.Database do
   end
 
   @spec get_ticks_from_time_range(atom(), pos_integer(), pos_integer()) :: list(Tick.t())
-  def get_ticks_from_time_range(_, timestamp_from, timestamp_to) when timestamp_to < timestamp_from do
-    []
-  end
   def get_ticks_from_time_range(symbol, timestamp_from, timestamp_to) do
     :ets.safe_fixtable(symbol, true)
     records = get_records(symbol, timestamp_from, timestamp_to, [])
@@ -35,8 +32,8 @@ defmodule TickerBase.Database do
   def get_ticks_from_current_month(symbol) do
     date_now          = %DateTime{year: year, month: month} = DateTime.utc_now()
     last_day_of_month = :calendar.last_day_of_the_month(year, month)
-    timestamp_from    = DateTime.to_unix(%DateTime{date_now | day: 1, hour: 0, minute: 0, second: 0, microsecond: {0,0}})
-    timestamp_to      = DateTime.to_unix(%DateTime{date_now | day: last_day_of_month, hour: 23, minute: 59, second: 59, microsecond: {999_999,6}})
+    timestamp_from    = DateTime.to_unix(%DateTime{date_now | day: 1, hour: 0, minute: 0, second: 0, microsecond: {0,0}}, :millisecond)
+    timestamp_to      = DateTime.to_unix(%DateTime{date_now | day: last_day_of_month, hour: 23, minute: 59, second: 59, microsecond: {999_999,6}}, :millisecond)
 
     :ets.safe_fixtable(symbol, true)
     records = get_records(symbol, timestamp_from, timestamp_to, [])
@@ -45,7 +42,10 @@ defmodule TickerBase.Database do
   end
 
   def init(symbols) do
-    symbols |> Enum.dedup() |> Enum.each(fn symbol -> :ets.new(symbol, [:ordered_set, :public, :named_table]) end)
+    symbols
+    |> Enum.dedup()
+    |> Enum.each(fn symbol -> :ets.new(symbol, [:ordered_set, :public, :named_table]) end)
+
     {:ok, %{}}
   end
 
@@ -64,12 +64,12 @@ defmodule TickerBase.Database do
     Enum.reverse(records)
   end
   defp get_records(symbol, current_timestamp, last_timestamp, records) do
-    new_records = case :ets.lookup(symbol, current_timestamp) do
-      [{current_timestamp, price}] -> [%Tick{symbol: symbol, price: price, timestamp: current_timestamp}|records]
-      _                            -> records
-    end
-
-    get_records(symbol, :ets.next(symbol, current_timestamp), last_timestamp, new_records)
+    get_records(symbol, :ets.next(symbol, current_timestamp), last_timestamp, get_single_record(symbol, :ets.lookup(symbol, current_timestamp), records))
   end
+
+  defp get_single_record(symbol, [{current_timestamp, price}], records) do
+    [%Tick{symbol: symbol, price: price, timestamp: current_timestamp}|records]
+  end
+  defp get_single_record(_, _, records), do: records
 
 end

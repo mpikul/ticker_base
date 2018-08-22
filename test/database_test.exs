@@ -83,6 +83,13 @@ defmodule DatabaseTest do
     assert(500000 == length(Database.get_all_ticks(:EURUSD)))
   end
 
+  test "Parallel reads" do
+    for n <- 1..5000, do: assert(Database.insert_tick!(%Tick{symbol: :EURUSD, timestamp: n}))
+
+    tasks = for _ <- 1..500, do: Task.async(fn -> length(Database.get_all_ticks(:EURUSD)) end)
+    Enum.each(tasks, fn task -> assert(5000 == Task.await(task)) end)
+  end
+
   defp test_ticks_from_time_range(symbol, time_from, time_to) do
     result = Enum.map(time_from..time_to, fn n -> %Tick{symbol: symbol, timestamp: n} end)
 

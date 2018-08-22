@@ -23,8 +23,9 @@ defmodule TickerBase.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ace, "~> 0.16.6"},
-      {:poison, "~> 4.0.1"}
+      {:ace,      "~> 0.16.6"},
+      {:poison,   "~> 4.0.1"},
+      {:ex_meck,  "~> 0.2.0", only: [:test]}
     ]
   end
 
