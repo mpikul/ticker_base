@@ -1,6 +1,6 @@
 defmodule TickerBase.Database do
   @moduledoc false
-  
+
   use GenServer
 
   alias TickerBase.Tick
@@ -32,8 +32,17 @@ defmodule TickerBase.Database do
   def get_ticks_from_current_month(symbol) do
     date_now          = %DateTime{year: year, month: month} = DateTime.utc_now()
     last_day_of_month = :calendar.last_day_of_the_month(year, month)
-    timestamp_from    = DateTime.to_unix(%DateTime{date_now | day: 1, hour: 0, minute: 0, second: 0, microsecond: {0,0}}, :millisecond)
-    timestamp_to      = DateTime.to_unix(%DateTime{date_now | day: last_day_of_month, hour: 23, minute: 59, second: 59, microsecond: {999_999,6}}, :millisecond)
+    timestamp_from    = DateTime.to_unix(%DateTime{date_now | day: 1,
+                                                              hour: 0,
+                                                              minute: 0,
+                                                              second: 0,
+                                                              microsecond: {0, 0}}, :millisecond)
+
+    timestamp_to      = DateTime.to_unix(%DateTime{date_now | day: last_day_of_month,
+                                                              hour: 23,
+                                                              minute: 59,
+                                                              second: 59,
+                                                              microsecond: {999_999, 6}}, :millisecond)
 
     :ets.safe_fixtable(symbol, true)
     records = get_records(symbol, timestamp_from, timestamp_to, [])

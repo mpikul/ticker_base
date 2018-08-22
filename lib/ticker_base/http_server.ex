@@ -3,10 +3,10 @@ defmodule TickerBase.HttpServer do
 
   use Ace.HTTP.Service, [port: 8080, cleartext: true]
 
-  alias TickerBase.{Tick, Database}
+  alias TickerBase.{Database, Tick}
 
   @impl Raxx.Server
-  def handle_request(request = %{method: :GET, path: ["api", "ticks", symbol_alias]}, aliases_map) do
+  def handle_request(%{method: :GET, path: ["api", "ticks", symbol_alias]} = request, aliases_map) do
     results = aliases_map |> Map.get(symbol_alias) |> get_data(fetch_query(request))
     response(:ok)
     |> set_header("content-type", "text/plain")
@@ -30,11 +30,12 @@ defmodule TickerBase.HttpServer do
   end
 
   def handle_request(_, _) do
-    response(400)
+    400
+    |> response()
     |> set_header("content-type", "text/plain")
   end
 
-  defp insert_data({:ok ,%{"symbol" => symbol_alias, "price" => price, "timestamp" => timestamp}}, aliases_map) do
+  defp insert_data({:ok, %{"symbol" => symbol_alias, "price" => price, "timestamp" => timestamp}}, aliases_map) do
     Database.insert_tick!(%Tick{
       symbol: Map.get(aliases_map, symbol_alias),
       price: string_to_float(price),
@@ -51,9 +52,6 @@ defmodule TickerBase.HttpServer do
     symbol
     |> Database.get_all_ticks()
     |> Enum.map(fn tick -> convert_data_to_result(tick) end)
-  end
-  defp get_data(_, _) do
-    []
   end
 
   defp get_candles(symbol) do

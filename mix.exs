@@ -25,7 +25,9 @@ defmodule TickerBase.MixProject do
     [
       {:ace,      "~> 0.16.6"},
       {:poison,   "~> 4.0.1"},
-      {:ex_meck,  "~> 0.2.0", only: [:test]}
+      {:ex_meck,  "~> 0.2.0", only: [:test]},
+      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
+      {:credo,    "~> 0.10.0", only: [:dev, :test], runtime: false}
     ]
   end
 

@@ -3,10 +3,11 @@ defmodule DatabaseTest do
 
   use ExUnit.Case, async: false
 
-  alias TickerBase.{Tick, Database}
+  alias TickerBase.{Database, Tick}
 
   setup do
-    {:ok, pid} = start_supervised(%{id: Database,start: {TickerBase.Database, :start_link, [[:EURUSD, :BTCUSD]]}}, restart: :temporary)
+    {:ok, pid} = start_supervised(%{id: Database,
+                                    start: {Database, :start_link, [[:EURUSD, :BTCUSD]]}}, restart: :temporary)
     %{pid: pid}
   end
 
@@ -58,7 +59,9 @@ defmodule DatabaseTest do
   test "Time range without any ticks" do
     for n <- 1..10, do: assert(Database.insert_tick!(%Tick{symbol: :EURUSD, timestamp: n * 10}))
 
-    for x <- 0..9, y <- x * 10 + 1..x * 10 + 9, do: assert([] == Database.get_ticks_from_time_range(:EURUSD, x * 10 + 1, y))
+    for x <- 0..9, y <- x * 10 + 1..x * 10 + 9 do
+      assert([] == Database.get_ticks_from_time_range(:EURUSD, x * 10 + 1, y))
+    end
   end
 
   test "No ticks from current month" do
@@ -77,10 +80,11 @@ defmodule DatabaseTest do
   end
 
   test "Parallel inserts" do
-    tasks = for n <- 1..5000, do: Task.async(fn -> t = n * 1000; insert_multiple_ticks(t, t + 99) end)
+    tasks = for n <- 1..5000, do: Task.async(fn -> t = n * 1000
+                                                   insert_multiple_ticks(t, t + 99) end)
     Enum.each(tasks, fn task -> assert(Task.await(task)) end)
 
-    assert(500000 == length(Database.get_all_ticks(:EURUSD)))
+    assert(500_000 == length(Database.get_all_ticks(:EURUSD)))
   end
 
   test "Parallel reads" do
